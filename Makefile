@@ -44,7 +44,7 @@ gen:  build/foo.c xsat_gen.py
 build/foo.c: $(IN)  XSAT_IN.txt
 	@echo "[XSAT] .smt2 -> .c"
 	@mkdir -p build
-	python xsat_gen.py $<  > $@
+	python2.7 xsat_gen.py $<  > $@
 
 compile_square: build/R_square/foo.so
 build/R_square/foo.so: build/foo.c include/R_square/xsat.h  $(IN) 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 
 import os,sys
 import subprocess
@@ -11,6 +11,8 @@ import argparse
 OKGREEN = '\033[92m'
 WARNING = '\033[93m'
 ENDC = '\033[0m'
+
+gosatPath='./gosat'
 
 def okay( msg):
     return OKGREEN + msg + ENDC
@@ -32,15 +34,20 @@ expected_results = ["sat", "sat","sat","sat","sat","sat","sat","sat","sat","unsa
 
 
 
+bench_count=len(testFiles)
+right_count = 0
 for i,(f,expected) in enumerate (zip (testFiles,expected_results)):
     if (i+1)%args.quick!=0: continue
     fileName="Benchmarks/"+f+".smt2"
     print ("(%s)") %(i+1), "Working on", fileName
-    COMMAND0='make -j IN=%s' %fileName 
-    print "   Compiling ..."
-    subprocess.check_call(COMMAND0.split(),stdout=open(os.devnull, 'wb'))
+    # subprocess.check_call(COMMAND0.split(),stdout=open(os.devnull, 'wb'))
     print "   Solving ..."
 
-    COMMAND='python2.7 xsat.py --bench'
-    satisfiability=subprocess.check_output(COMMAND.split()).rstrip()
+    COMMAND= gosatPath + ' -c -f '+ fileName
+    # satisfiability=subprocess.check_output(COMMAND.split()).rstrip()
+    outs=subprocess.check_output(COMMAND.split(), stderr=subprocess.STDOUT)
+    print '     |--->  ', outs,
+    satisfiability = 'unsat' if 'unsat' in outs else 'sat'
     print "   ==> "+ satisfiability, okay("[Expected]") if satisfiability==expected else warn("[Unexpected]")
+    right_count += 1 if satisfiability==expected else 0
+print right_count, '/', bench_count
