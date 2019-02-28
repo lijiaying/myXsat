@@ -142,7 +142,13 @@ def _gen(expr_z3,symbolTable,cache,result):
     ###Leaf: val
     if _is_value(expr_z3):
         if DEBUG: print "-- Branch _is_value" 
+        #@baigd
+        expr_sort = expr_z3.sort()
+        ##baigd
         if z3.is_fp(expr_z3) or z3.is_real(expr_z3):
+            #@baigd
+            expr_z3 = sympy.N(expr_z3)
+            ##baigd
             if DEBUG: print "---- Sub-Branch FP or Real" 
             if isinstance(expr_z3,z3.FPNumRef):
                 if DEBUG: print "------- Sub-Sub-Branch _is_FPNumRef"
@@ -177,7 +183,10 @@ def _gen(expr_z3,symbolTable,cache,result):
         else:
             raise NotImplementedError("[XSat: Coral Benchmarking] type not considered ")
         
-        if expr_z3.sort()==z3.Float32():
+        #@baigd
+        # if expr_z3_sort()==z3.Float32():
+        if expr_sort==z3.Float32():
+        ##baigd
             str_ret=str_ret+"f"
             
         return str_ret
