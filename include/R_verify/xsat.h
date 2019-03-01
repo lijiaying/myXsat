@@ -10,7 +10,7 @@ double DGT(double x,double y);
 double DGE(double x,double y);
 double DEQ(double x,double y);
 double DNE(double x,double y);
-double  DCONST(double c);
+double DCONST(double c);
 double BAND(double x,double y);
 double BOR(double x,double y);
 float TR32(double x);

@@ -40,23 +40,17 @@ endef
 
 all:  compile
 
+solve: compile
+	@echo [XSAT] Executing the solver.
+	@python xsat.py 
+
+compile:  compile_ulp compile_verify
+
 gen:  build/foo.c xsat_gen.py
 build/foo.c: $(IN)  XSAT_IN.txt
 	@echo "[XSAT] .smt2 -> .c"
 	@mkdir -p build
 	python2.7 xsat_gen.py $<  > $@
-
-compile_square: build/R_square/foo.so
-build/R_square/foo.so: build/foo.c include/R_square/xsat.h  $(IN) 
-	@echo [XSAT]Compiling the representing function as $@
-	@mkdir -p build/R_square
-	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@  -I $(PYTHONINC) -I include/R_square -L $(PYTHONLIB) -lpython2.7 -fbracket-depth=3000
-
-compile_verify: build/R_verify/foo.so
-build/R_verify/foo.so: build/foo.c include/R_verify/xsat.h  $(IN) 
-	@echo [XSAT]Compiling the representing function as $@
-	@mkdir -p build/R_verify
-	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@   -I include/R_verify -I $(PYTHONINC) -L $(PYTHONLIB)  -lpython2.7 -fbracket-depth=3000
 
 compile_ulp: build/R_ulp/foo.so
 build/R_ulp/foo.so: build/foo.c include/R_ulp/xsat.h  $(IN) 
@@ -64,11 +58,12 @@ build/R_ulp/foo.so: build/foo.c include/R_ulp/xsat.h  $(IN)
 	@mkdir -p build/R_ulp
 	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@  -I include/R_ulp  -I $(PYTHONINC)  -L $(PYTHONLIB) -lpython2.7 -fbracket-depth=3000
 
-compile:  compile_ulp compile_verify
+compile_verify: build/R_verify/foo.so
+build/R_verify/foo.so: build/foo.c include/R_verify/xsat.h  $(IN) 
+	@echo [XSAT]Compiling the representing function as $@
+	@mkdir -p build/R_verify
+	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@   -I include/R_verify -I $(PYTHONINC) -L $(PYTHONLIB)  -lpython2.7 -fbracket-depth=3000
 
-solve: compile
-	@echo [XSAT] Executing the solver.
-	@python xsat.py 
 
 test: test_benchmarks.py
 	python $<
@@ -84,6 +79,6 @@ clean:
 	@rm -vf Results/*
 
 
-.PHONY: copy gen clean compile compile_square test
+.PHONY: copy gen clean compile test
 
 

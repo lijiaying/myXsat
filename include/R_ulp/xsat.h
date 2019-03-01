@@ -54,8 +54,8 @@ double DGE(double x,double y);
 double DEQ(double x,double y);
 double DNE(double x,double y);
 
-double  BAND(double x,double y);
-double  BOR(double x,double y);
+double BAND(double x,double y);
+double BOR(double x,double y);
 float TR32(double x);
 double MAX(double a, double b);
 
