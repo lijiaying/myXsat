@@ -13,6 +13,10 @@ import warnings
 import struct
 import cPickle as pickle
 
+sys.path.insert(0,os.path.join(os.getcwd(),"build/R_ulp"))
+import foo 
+reload(foo) #necessary because name 'foo' now still points to foo_square
+
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -84,6 +88,7 @@ def _getSort(expr_z3):
     if expr_z3.sort()==z3.IntSort():
         return Sort.Int
     return Sort. UNKNOWN 
+
 ##
 def var_hash(expr_z3):
     return "_x_"+expr_z3.hash()
@@ -108,10 +113,6 @@ def mcmc_bis(i):
 
     
 def mcmc(args,i):
-    sys.path.insert(0,os.path.join(os.getcwd(),"build/R_ulp"))
-    import foo 
-    reload(foo) #necessary because name 'foo' now still points to foo_square
-    
     np.random.seed()
     t_start_round1=time.time()
     if args.method=='noop_min': _minimizer_kwargs=dict(method=noop_min)
@@ -127,15 +128,10 @@ def mcmc(args,i):
     
     if res.fun!=0 and res.fun<args.round2_threshold:
         if args.showTime: print "[Xsat] round2_move"
-        sys.path.insert(0,os.path.join(os.getcwd(),"build/R_ulp"))
-        # import foo 
-        # reload(foo)
         sp=np.array([res.x+0]) if res.x.ndim==0 else res.x
         obj_near=lambda N:foo.R(* nth_fp_vectorized(N, scale(sp,i)))
-        #print op.fmin_powell(obj_near,np.zeros(foo.dim))
 
         res_round2 = op.basinhopping(obj_near,np.zeros(foo.dim),niter=args.round2_niter,stepsize=args.round2_stepsize,minimizer_kwargs=_minimizer_kwargs,callback=_callback_global)
-        #        res_round2 = op.fmin_powell(obj_near,np.zeros(foo.dim))
         if args.showResult: print "result (round 2) with i = ",i, '\n', res_round2, '\n'
 
         R_star=res_round2.fun
@@ -162,7 +158,6 @@ def nth_fp_vectorized(n, x):
         warnings.warn("Value out of range, with n= %g,x=%g,m=%g, process=%g" %(n,x,m, mp.current_process.name))
         m=0x7ff0000000000000
 #        raise ValueError('out of range')
-    
     bit_pattern = struct.pack('Q', m | sign_bit)
     return struct.unpack('d', bit_pattern)[0]
 
@@ -183,6 +178,22 @@ def tr_help(X):
         else: return X
 
 
+#execute it quickly, since a lock is set
+def log_result(result):
+    (X_star,R_star)=result
+    if args.showTime: print "[Xsat-multi] ENTERING: ",mp.current_process().name,  "log_result Minimum=", R_star
+    assert len(results_pool)<=1
+    if len(results_pool)==0:
+        results_pool.append(result)
+    else:
+        (X_star_pool,R_star_pool)=results_pool[0]                
+        if R_star<R_star_pool:
+            results_pool[0]=result
+            if R_star_pool==0:
+                if args.showTime: print "[Xsat-multi] I kill the other process now!!!"
+                pool.terminate()
+            
+
 if __name__ == "__main__":
     timeStamp0=time.time()
 
@@ -198,7 +209,6 @@ if __name__ == "__main__":
     parser.add_argument ('--stepSize', help='parameter of basinhopping', type=float, default=10.0);
     parser.add_argument ('--round2_stepsize', help='parameter of basinhopping', type=float, default=100.0);        
     parser.add_argument ('--verify', help='verify the model', action='store_true',default=False)
-    parser.add_argument ('--verify2', help='verify the model (method 2)', action='store_true',default=False)    
     parser.add_argument ('--showModel', help='show the model as a var->value mapping', action='store_true',default=False)
     parser.add_argument ('--showSymbolTable', help='show the symbol table, var->type', action='store_true',default=False)
     parser.add_argument ('--showConstraint', help='show the constraint, using the Z3 frontend', action='store_true',default=False)
@@ -227,7 +237,6 @@ if __name__ == "__main__":
     if args.bench:
         args.debug=False
         args.verify=False
-        args.verify2=False
         args.showResult=False
         args.showTime=False
         args.suppressWarning=True
@@ -235,7 +244,6 @@ if __name__ == "__main__":
 
     if args.debug:
         args.verify=True
-        args.verify2=True
         args.showResult=True
         args.showTime=True
         args.suppressWarning=False
@@ -245,9 +253,6 @@ if __name__ == "__main__":
     if args.suppressWarning:
         warnings.filterwarnings("ignore")
 
-    with open ("XSAT_IN.txt") as f:
-        try: expr_z3=z3.simplify(z3.parse_smt2_file(f.read().rstrip()))
-        except z3.Z3Exception: sys.stderr.write("[Xsat] The Z3 fornt-end fails when verifying the model.\n")
     with open ("build/foo.symbolTable","rb") as f:
         symbolTable=pickle.load(f)
     if len(symbolTable)==0:
@@ -260,22 +265,6 @@ if __name__ == "__main__":
         result_mult=None
         pool = mp.Pool()
 
-        #execute it quickly, since a lock is set
-        def log_result(result):
-            (X_star,R_star)=result
-
-            if args.showTime: print "[Xsat-multi] ENTERING: ",mp.current_process().name,  "log_result Minimum=", R_star
-            assert len(results_pool)<=1
-            if len(results_pool)==0:
-                results_pool.append(result)
-            else:
-                (X_star_pool,R_star_pool)=results_pool[0]                
-                if R_star<R_star_pool:
-                    results_pool[0]=result
-                    if R_star_pool==0:
-                        if args.showTime: print "[Xsat-multi] I kill the other process now!!!"
-                        pool.terminate()
-                    
         for i in range(mp.cpu_count()):
             p=pool.apply_async(mcmc, args=(args, i,  ), callback=log_result)
         pool.close()
@@ -296,18 +285,12 @@ if __name__ == "__main__":
 
     if args.verify:
         if args.showTime: print "[Xsat] verify X_star with z3 front-end"        
+        with open ("XSAT_IN.txt") as f:
+            try: expr_z3=z3.simplify(z3.parse_smt2_file(f.read().rstrip()))
+            except z3.Z3Exception: sys.stderr.write("[Xsat] The Z3 fornt-end fails when verifying the model.\n")
         verified = verify_solution(expr_z3,X_star, symbolTable,printModel=args.printModel)
         if verified and R_star!=0: sys.stderr.write("WARNING!!!!!!!!!!!!!!!! Actually sat.\n")
         elif not verified and R_star==0: sys.stderr.write("WARNING!!!!!!!!!!!!!!!  Wrong model !\n")
-        
-    if args.verify2:
-        if args.showTime: print "[Xsat] verify X_star with build/R_verify"                
-        sys.path.insert(0,os.path.join(os.getcwd(),"build/R_verify"))
-        import foo as foo_verify
-        reload(foo_verify) #necessary because name 'foo' now still points to foo_square
-        verify_res=foo_verify.R(*X_star)  if foo_verify.dim==1 else foo_verify.R(*(X_star))
-        if verify_res==0 and R_star!=0: sys.stderr.write("WARNING from verify2 (using include/R_verify/xsat.h) !!!!!!!!!!!!!!!! Actually sat.\n")
-        elif verify_res!=0 and R_star==0: sys.stderr.write("WARNING from verify2  (using include/R_verify/xsat.h) !!!!!!!!!!!!!!!  Wrong model ! \n")
         
     t_verify=time.time()
     

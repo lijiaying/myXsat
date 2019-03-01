@@ -44,7 +44,7 @@ solve: compile
 	@echo [XSAT] Executing the solver.
 	@python xsat.py 
 
-compile:  compile_ulp compile_verify
+compile:  compile_ulp 
 
 gen:  build/foo.c xsat_gen.py
 build/foo.c: $(IN)  XSAT_IN.txt
@@ -57,12 +57,6 @@ build/R_ulp/foo.so: build/foo.c include/R_ulp/xsat.h  $(IN)
 	@echo [XSAT]Compiling the representing function as $@
 	@mkdir -p build/R_ulp
 	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@  -I include/R_ulp  -I $(PYTHONINC)  -L $(PYTHONLIB) -lpython2.7 -fbracket-depth=3000
-
-compile_verify: build/R_verify/foo.so
-build/R_verify/foo.so: build/foo.c include/R_verify/xsat.h  $(IN) 
-	@echo [XSAT]Compiling the representing function as $@
-	@mkdir -p build/R_verify
-	@$(CC) -O3 -fPIC $< $(DLIBFLAG) -o $@   -I include/R_verify -I $(PYTHONINC) -L $(PYTHONLIB)  -lpython2.7 -fbracket-depth=3000
 
 
 test: test_benchmarks.py
